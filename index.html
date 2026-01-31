@@ -1,0 +1,583 @@
+﻿<!doctype html>
+<html lang="de">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+  <title>Mobile Poster Generator</title>
+  <style>
+    @font-face {
+      font-family: "AkUltra";
+      src: url("fonts/Ak_ultra-Regular.ttf") format("truetype");
+      font-display: swap;
+    }
+    @font-face {
+      font-family: "NoiseUltra";
+      src: url("fonts/Noise_ultra-Regular.ttf") format("truetype");
+      font-display: swap;
+    }
+    :root {
+      --ink: #101010;
+      --panel: #ffffff;
+      --panel-border: #e0e0e0;
+      --accent: #111111;
+      --accent-ink: #ffffff;
+      --shadow: 0 18px 40px rgba(20, 20, 20, 0.25);
+    }
+    * {
+      box-sizing: border-box;
+    }
+    html, body {
+      height: 100%;
+    }
+    body {
+      margin: 0;
+      font-family: "Verdana", "Geneva", sans-serif;
+      background: #ffffff;
+      color: var(--ink);
+      overflow: hidden;
+    }
+    #app {
+      height: 100%;
+      display: flex;
+      flex-direction: column;
+    }
+    #stage {
+      flex: 1;
+      padding: 12px 12px 8px;
+      display: flex;
+      align-items: stretch;
+      justify-content: center;
+    }
+    #stage canvas {
+      width: 100% !important;
+      height: 100% !important;
+      border-radius: 22px;
+      box-shadow: var(--shadow);
+      border: 1px solid rgba(0, 0, 0, 0.12);
+      background: #f8f8f8;
+    }
+    #controls {
+      padding: 12px 14px 18px;
+      display: flex;
+      flex-direction: column;
+      gap: 12px;
+      background: var(--panel);
+      border-top: 1px solid var(--panel-border);
+    }
+    input[type="text"] {
+      width: 100%;
+      padding: 12px 14px;
+      font-size: 16px;
+      border-radius: 16px;
+      border: 1px solid var(--panel-border);
+      background: rgba(255, 255, 255, 0.9);
+      color: var(--ink);
+      font-family: inherit;
+      letter-spacing: 0.03em;
+    }
+    input[type="range"] {
+      width: 100%;
+      appearance: none;
+      height: 30px;
+      background: transparent;
+    }
+    input[type="range"]::-webkit-slider-runnable-track {
+      height: 4px;
+      background: #111111;
+      border-radius: 8px;
+    }
+    input[type="range"]::-webkit-slider-thumb {
+      appearance: none;
+      width: 20px;
+      height: 20px;
+      border-radius: 50%;
+      background: #111111;
+      border: 2px solid #ffffff;
+      margin-top: -8px;
+      box-shadow: 0 2px 6px rgba(0, 0, 0, 0.3);
+    }
+    input[type="range"]::-moz-range-track {
+      height: 4px;
+      background: #111111;
+      border-radius: 8px;
+    }
+    input[type="range"]::-moz-range-thumb {
+      width: 20px;
+      height: 20px;
+      border-radius: 50%;
+      background: #111111;
+      border: 2px solid #ffffff;
+      box-shadow: 0 2px 6px rgba(0, 0, 0, 0.3);
+    }
+    .control-label {
+      font-size: 12px;
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+      color: #333333;
+    }
+    button {
+      width: 100%;
+      border: none;
+      border-radius: 18px;
+      padding: 14px 16px;
+      font-size: 16px;
+      font-family: inherit;
+      text-transform: uppercase;
+      letter-spacing: 0.14em;
+      background: var(--accent);
+      color: var(--accent-ink);
+      box-shadow: 0 12px 24px rgba(17, 17, 17, 0.28);
+    }
+    button.secondary {
+      background: #ffffff;
+      color: var(--ink);
+      border: 1px solid var(--panel-border);
+      font-size: 13px;
+      padding: 10px 12px;
+      letter-spacing: 0.12em;
+      box-shadow: none;
+    }
+    button:active {
+      transform: translateY(1px);
+    }
+    @media (min-width: 700px) {
+      #app {
+        max-width: 520px;
+        margin: 0 auto;
+      }
+      #stage {
+        padding: 18px;
+      }
+      #controls {
+        border-radius: 22px 22px 0 0;
+      }
+    }
+  </style>
+  <script src="libs/p5.min.js"></script>
+</head>
+<body>
+  <main id="app">
+    <section id="stage" aria-label="Poster Preview"></section>
+    <section id="controls">
+      <input id="textInput" type="text" placeholder="Poster Text" maxlength="80" aria-label="Poster Text">
+      <label class="control-label" for="sizeInput">Font Groesse</label>
+      <input id="sizeInput" type="range" min="32" max="160" value="96" step="2" aria-label="Schriftgroesse">
+      <label class="control-label" for="randomInput">Randomness</label>
+      <input id="randomInput" type="range" min="0" max="100" value="80" step="1" aria-label="Randomness">
+      <button id="generateBtn" type="button">Erstelle Poster</button>
+      <button id="downloadBtn" class="secondary" type="button">Download</button>
+    </section>
+  </main>
+
+  <script>
+    const BG_IMAGES = [
+      "https://picsum.photos/id/10/1600/2200",
+      "https://picsum.photos/id/11/1600/2200",
+      "https://picsum.photos/id/12/1600/2200",
+      "https://picsum.photos/id/13/1600/2200",
+      "https://picsum.photos/id/14/1600/2200",
+      "https://picsum.photos/id/15/1600/2200",
+      "https://picsum.photos/id/16/1600/2200",
+      "https://picsum.photos/id/18/1600/2200",
+      "https://picsum.photos/id/19/1600/2200",
+      "https://picsum.photos/id/20/1600/2200",
+      "https://picsum.photos/id/21/1600/2200",
+      "https://picsum.photos/id/22/1600/2200",
+      "https://picsum.photos/id/23/1600/2200",
+      "https://picsum.photos/id/24/1600/2200",
+      "https://picsum.photos/id/25/1600/2200",
+      "https://picsum.photos/id/26/1600/2200",
+      "https://picsum.photos/id/27/1600/2200",
+      "https://picsum.photos/id/28/1600/2200",
+      "https://picsum.photos/id/29/1600/2200",
+      "https://picsum.photos/id/30/1600/2200",
+      "https://picsum.photos/id/31/1600/2200",
+      "https://picsum.photos/id/32/1600/2200",
+      "https://picsum.photos/id/33/1600/2200",
+      "https://picsum.photos/id/34/1600/2200",
+      "https://picsum.photos/id/35/1600/2200",
+      "https://picsum.photos/id/36/1600/2200",
+      "https://picsum.photos/id/37/1600/2200",
+      "https://picsum.photos/id/38/1600/2200",
+      "https://picsum.photos/id/39/1600/2200",
+      "https://picsum.photos/id/40/1600/2200"
+    ];
+
+    const FONT_FILES = [
+      "fonts/Ak_ultra-Regular.ttf",
+      "fonts/Noise_ultra-Regular.ttf",
+      "fonts/block_ultra.otf",
+      "fonts/CH1_ultra.otf",
+      "fonts/DRN_ultra.otf",
+      "fonts/sonar_ultra.otf",
+      "fonts/slice_ultra.otf",
+      "fonts/TSU_ultra.otf",
+      "fonts/franzi_ultra.otf"
+    ];
+
+    let BLEND_MODES = [];
+    let FILTERS = [];
+
+    let loadedFonts = [];
+    let posterState = null;
+
+    function randByFactor(min, max, factor) {
+      const center = (min + max) / 2;
+      const spread = (max - min) / 2;
+      return center + random(-spread, spread) * factor;
+    }
+
+    function randIntByFactor(min, max, factor) {
+      return Math.max(1, Math.round(randByFactor(min, max, factor)));
+    }
+
+    function preload() {
+      loadedFonts = FONT_FILES.map(path => loadFont(path));
+    }
+
+    function setup() {
+      const stage = document.getElementById("stage");
+      const canvas = createCanvas(stage.clientWidth, stage.clientHeight);
+      canvas.parent(stage);
+      angleMode(DEGREES);
+      textAlign(CENTER, CENTER);
+      imageMode(CENTER);
+      rectMode(CENTER);
+      pixelDensity(1);
+      noLoop();
+
+      BLEND_MODES = [
+        BLEND,
+        ADD,
+        MULTIPLY,
+        SCREEN,
+        DIFFERENCE,
+        EXCLUSION,
+        OVERLAY,
+        HARD_LIGHT,
+        SOFT_LIGHT,
+        DODGE,
+        BURN
+      ];
+
+      FILTERS = [
+        { mode: THRESHOLD, value: 1 },
+        { mode: INVERT },
+        { mode: GRAY },
+        { mode: POSTERIZE, value: 2 },
+        { mode: BLUR, value: 12 },
+        { mode: ERODE },
+        { mode: DILATE }
+      ];
+
+      const textInput = document.getElementById("textInput");
+      const sizeInput = document.getElementById("sizeInput");
+      const randomInput = document.getElementById("randomInput");
+      const generateBtn = document.getElementById("generateBtn");
+      const downloadBtn = document.getElementById("downloadBtn");
+
+      generateBtn.addEventListener("click", generatePoster);
+      downloadBtn.addEventListener("click", downloadPoster);
+      textInput.addEventListener("keydown", (event) => {
+        if (event.key === "Enter") generatePoster();
+      });
+
+      generatePoster();
+    }
+
+    function windowResized() {
+      const stage = document.getElementById("stage");
+      resizeCanvas(stage.clientWidth, stage.clientHeight);
+      drawPoster();
+    }
+
+    function generatePoster() {
+      const textInput = document.getElementById("textInput");
+      const sizeInput = document.getElementById("sizeInput");
+      const randomInput = document.getElementById("randomInput");
+      const content = (textInput.value || "").trim() || "POSTER";
+      const fontSize = parseInt(sizeInput.value, 10) || 96;
+      const randomness = Math.min(1, Math.max(0, parseInt(randomInput.value, 10) / 100));
+
+      const bgColor = color(random(0, 255), random(0, 255), random(0, 255));
+      const textColor = color(random(0, 255), random(0, 255), random(0, 255));
+      const accentColor = color(random(0, 255), random(0, 255), random(0, 255));
+
+      posterState = {
+        text: content,
+        fontSize,
+        bgColor,
+        textColor,
+        accentColor,
+        randomness,
+        font: random(loadedFonts),
+        blend: random(BLEND_MODES),
+        filter: random(FILTERS),
+        textRotation: randByFactor(-40, 40, randomness) + randByFactor(-220, 220, randomness),
+        stamps: buildStamps(randomness),
+        bgTiles: buildBackgroundTiles(randomness),
+        seed: floor(random(1, 1000000)),
+        ghostLayer: {
+          blend: random(BLEND_MODES),
+          rotation: randByFactor(-40, 40, randomness) + randByFactor(-200, 200, randomness),
+          scale: randByFactor(1.1, 1.8, randomness),
+          offsetX: randByFactor(-width * 0.04, width * 0.04, randomness) + randByFactor(-width * 0.12, width * 0.12, randomness),
+          offsetY: randByFactor(-height * 0.04, height * 0.04, randomness) + randByFactor(-height * 0.12, height * 0.12, randomness),
+          alpha: randByFactor(110, 180, randomness)
+        }
+      };
+
+      loadBackgroundTiles(posterState.bgTiles);
+
+      drawPoster();
+    }
+
+    function downloadPoster() {
+      drawPoster();
+      saveCanvas("poster", "png");
+    }
+
+    function buildStamps(randomness) {
+      const stamps = [];
+      const count = randIntByFactor(10, 22, randomness);
+      for (let i = 0; i < count; i++) {
+        stamps.push({
+          x: randByFactor(-width * 0.15, width * 0.15, randomness) + randByFactor(-width * 0.45, width * 0.45, randomness),
+          y: randByFactor(-height * 0.15, height * 0.15, randomness) + randByFactor(-height * 0.45, height * 0.45, randomness),
+          rotation: randByFactor(-60, 60, randomness) + randByFactor(-260, 260, randomness),
+          scale: randByFactor(0.6, 1.6, randomness) + randByFactor(0.3, 2.2, randomness) * 0.4,
+          alpha: randByFactor(150, 255, randomness),
+          color: color(random(0, 255), random(0, 255), random(0, 255)),
+          strokeColor: color(random(0, 255), random(0, 255), random(0, 255)),
+          strokeWeight: randByFactor(1, 6, randomness),
+          strokeOn: random() < (0.35 + randomness * 0.45),
+          scatter: random() < (0.25 + randomness * 0.6),
+          jitter: randByFactor(4, 18, randomness),
+          blend: random(BLEND_MODES),
+          font: random(loadedFonts)
+        });
+      }
+      return stamps;
+    }
+
+    function buildBackgroundTiles(randomness) {
+      const tiles = [];
+      const count = randIntByFactor(10, 24, randomness);
+      const base = min(width, height);
+      for (let i = 0; i < count; i++) {
+        const size = randByFactor(base * 0.25, base * 0.7, randomness);
+        const aspect = randByFactor(0.7, 1.6, randomness);
+        tiles.push({
+          url: random(BG_IMAGES),
+          x: randByFactor(width * 0.15, width * 0.85, randomness),
+          y: randByFactor(height * 0.15, height * 0.85, randomness),
+          w: size * aspect,
+          h: size / aspect,
+          rotation: randByFactor(-40, 40, randomness) + randByFactor(-120, 120, randomness),
+          alpha: randByFactor(140, 240, randomness),
+          blend: random(BLEND_MODES),
+          tint: color(random(0, 255), random(0, 255), random(0, 255)),
+          frameOn: random() < (0.2 + randomness * 0.6),
+          img: null
+        });
+      }
+      return tiles;
+    }
+
+    function loadBackgroundTiles(tiles) {
+      tiles.forEach((tile) => {
+        loadImage(
+          tile.url,
+          (img) => {
+            tile.img = img;
+            drawPoster();
+          },
+          () => {
+            tile.img = null;
+            drawPoster();
+          }
+        );
+      });
+    }
+
+    function drawPoster() {
+      if (!posterState) return;
+      randomSeed(posterState.seed);
+      background(posterState.bgColor);
+      drawBackgroundImage();
+      drawTextLayers();
+      applyFilter();
+    }
+
+    function drawBackgroundImage() {
+      const tiles = posterState.bgTiles || [];
+      if (!tiles.length) {
+        drawFallbackTexture();
+        return;
+      }
+
+      for (const tile of tiles) {
+        push();
+        translate(tile.x, tile.y);
+        rotate(tile.rotation);
+        blendMode(tile.blend);
+        if (tile.img) {
+          tint(red(tile.tint), green(tile.tint), blue(tile.tint), tile.alpha);
+          image(tile.img, 0, 0, tile.w, tile.h);
+        } else {
+          noStroke();
+          fill(255, 255, 255, tile.alpha * 0.6);
+          rect(0, 0, tile.w, tile.h);
+        }
+        if (tile.frameOn) {
+          noFill();
+          stroke(0, 40);
+          strokeWeight(2);
+          rect(0, 0, tile.w * 1.04, tile.h * 1.04);
+        }
+        pop();
+      }
+      blendMode(BLEND);
+      noTint();
+    }
+
+    function drawFallbackTexture() {
+      noStroke();
+      const bands = 6;
+      for (let i = 0; i < bands; i++) {
+        const offset = map(i, 0, bands - 1, -width * 0.6, width * 0.6);
+        fill(255, 255, 255, 40);
+        push();
+        rotate(i * 12);
+        rect(offset, 0, width * 0.4, height * 1.4);
+        pop();
+      }
+    }
+
+    function drawTextLayers() {
+      if (!posterState.font) return;
+      const baseSize = Math.min(posterState.fontSize, width * 1.05);
+      textLeading(baseSize * 0.9);
+
+      const ghost = posterState.ghostLayer;
+      blendMode(ghost.blend);
+      push();
+      translate(width / 2 + ghost.offsetX, height / 2 + ghost.offsetY);
+      rotate(ghost.rotation);
+      textFont(posterState.font);
+      textSize(baseSize * ghost.scale);
+      noStroke();
+      fill(red(posterState.accentColor), green(posterState.accentColor), blue(posterState.accentColor), ghost.alpha);
+      drawWrappedText(posterState.text, width * 0.92);
+      pop();
+
+      for (const stamp of posterState.stamps) {
+        push();
+        translate(width / 2 + stamp.x, height / 2 + stamp.y);
+        rotate(posterState.textRotation + stamp.rotation);
+        textFont(stamp.font || posterState.font);
+        textSize(baseSize * stamp.scale);
+        textLeading(baseSize * stamp.scale * 0.92);
+        blendMode(stamp.blend);
+        if (stamp.strokeOn) {
+          stroke(red(stamp.strokeColor), green(stamp.strokeColor), blue(stamp.strokeColor), stamp.alpha);
+          strokeWeight(stamp.strokeWeight);
+        } else {
+          noStroke();
+        }
+        fill(red(stamp.color), green(stamp.color), blue(stamp.color), stamp.alpha);
+        if (stamp.scatter) {
+          drawExplodedText(posterState.text, width * 0.8, stamp.jitter);
+        } else {
+          drawWrappedText(posterState.text, width * 0.78);
+        }
+        pop();
+      }
+
+      blendMode(BLEND);
+    }
+
+    function getWrappedLines(content, maxWidth) {
+      const words = content.split(/\s+/).filter(Boolean);
+      const lines = [];
+
+      if (words.length === 1 && textWidth(content) > maxWidth) {
+        let line = "";
+        for (const ch of content.split("")) {
+          const test = line + ch;
+          if (textWidth(test) > maxWidth && line) {
+            lines.push(line);
+            line = ch;
+          } else {
+            line = test;
+          }
+        }
+        if (line) lines.push(line);
+        return lines;
+      }
+
+      let line = "";
+      for (const word of words) {
+        const test = line ? `${line} ${word}` : word;
+        if (textWidth(test) > maxWidth && line) {
+          lines.push(line);
+          line = word;
+        } else {
+          line = test;
+        }
+      }
+      if (line) lines.push(line);
+      return lines;
+    }
+
+    function drawExplodedText(content, maxWidth, jitter) {
+      const lines = getWrappedLines(content, maxWidth);
+      if (!lines.length) {
+        text(content, 0, 0);
+        return;
+      }
+
+      textAlign(LEFT, CENTER);
+      const totalHeight = lines.length * textLeading();
+      const startY = -totalHeight / 2 + textLeading() / 2;
+      for (let i = 0; i < lines.length; i++) {
+        const line = lines[i];
+        const lineWidth = textWidth(line);
+        let cursor = -lineWidth / 2;
+        const y = startY + i * textLeading();
+        for (const ch of line.split("")) {
+          const chWidth = textWidth(ch);
+          text(ch, cursor + chWidth / 2 + random(-jitter, jitter), y + random(-jitter, jitter));
+          cursor += chWidth;
+        }
+      }
+      textAlign(CENTER, CENTER);
+    }
+
+    function drawWrappedText(content, maxWidth) {
+      const lines = getWrappedLines(content, maxWidth);
+
+      if (!lines.length) {
+        text(content, 0, 0);
+        return;
+      }
+
+      const totalHeight = lines.length * textLeading();
+      const startY = -totalHeight / 2 + textLeading() / 2;
+      for (let i = 0; i < lines.length; i++) {
+        text(lines[i], 0, startY + i * textLeading());
+      }
+    }
+
+    function applyFilter() {
+      const effect = posterState.filter;
+      if (!effect) return;
+      if (typeof effect.value === "number") {
+        filter(effect.mode, effect.value);
+      } else {
+        filter(effect.mode);
+      }
+    }
+  </script>
+</body>
+</html>
